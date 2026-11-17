@@ -9,14 +9,125 @@ output: word_document
 knitr::opts_chunk$set(echo = TRUE)
 
 ## Loading Packages
+library(tidyverse)
 library(dplyr)
 library(ggplot2)
 ```
+  
+For this project. I used the... 
+  
 ```{r}
 ## Loading data
-data_2018 <- read.csv("AQ_2018.csv")
-data_2019 <- read.csv("AQ_2019.csv")
-data_2020 <- read.csv("AQ_2020.csv")
+## Raw measurements taken from the air pollution monitor at the RDU airport
+data_2018 <- read_csv("AQ_2018.csv")
+data_2019 <- read_csv("AQ_2019.csv")
+data_2020 <- read_csv("AQ_2020.csv")
 
+# ## Function that processes a single year of data
+# str(data_2018) ## 479 obs. of 7 variables
+# length(unique(data_2019$Date)) ## 361 unique dates out of 479
+
+## Pseudo code:
+
+## csv_clean <- function ("file_path.csv", ozone_units) {
+## Load in the data: data_year <- read.csv("file_path.csv")
+
+## Rename columns:
+## "Daily.Max.8.hour.CO.Concentration" --> max_CO_concentration
+## Daily.Mean.PM2.5.Concentration" --> mean_PM2.5_concentration
+## "Daily.Max.8.hour.Ozone.Concentration" --> "max_ozone_concentration
+
+## column Date <- as.date(Date)
+
+## if date is not unique, take average of the duplicate rows, save average as the new date entry. This should also take care of duplicate rows, right? 
+## save to new_data
+
+## Loop through pollutants, or use apply/map:
+## for i in nrow(new_data) {
+## if new_data$CO_concentration[i] < 0 <- 0,
+## if new_data$PM2.5_concentration[i] < 0 <- 0,
+## if new_data$ozone_concentration[i] < 0 <- 0
+
+## Argument that lets user choose the units
+## new_data$units_O3 <- ozone units
+## if ozone_units == "ppb" {
+## new_data$units_O3 <- "ppb"
+## new_data$max_ozone_concentration * 1000
+
+## return(new dataframe or tibble)
+
+
+## Goal: clean air quality measurements from a single year of data
+## Arguments: 
+##    ozone_units, character, specifies either "ppm" or "ppb", default is "ppm"
+##    file_path, character, where .csv dataset is located on computer
+## Returns:
+##  data_year, tibble, cleaned data set
+
+csv_clean <- function(file_path, ozone_units = "ppm") {
+
+  ## Check requirements for function
+  if(!is.character(file_path)) {
+    stop("file_path is not a character string!")
+  }
+  
+  
+  if(!ozone_units %in% c("ppm", "ppb")) {
+    stop("ozone_units must be either 'ppm' or 'ppb'")
+  }
+  
+  ## Load data
+  data_year <- read_csv(file_path)
+  
+  ## Rename pollutant concentration columns
+  data_year <- data_year |> 
+    rename(
+      date = Date,
+      CO = `Daily Max 8-hour CO Concentration`,
+      PM25 = `Daily Mean PM2.5 Concentration`,
+      O3 = `Daily Max 8-hour Ozone Concentration`
+    )
+  
+  ## Format date 
+  data_year <- data_year |> 
+    mutate(
+      date = as.Date(date, format = "%m/%d/%Y")
+    )
+  
+  ## Remove identical rows
+  data_year <- data_year |> 
+    distinct()
+  
+  ## Calculate daily averages for repeated dates
+  data_year <- data_year |> 
+    group_by(date) |> 
+    summarise(
+      CO = mean(CO, na.rm = TRUE),
+      PM25 = mean(PM25, na.rm = TRUE),
+      O3 = mean(O3, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  ## Set negative pollutant concentrations to zero
+  for (i in c("CO","PM25", "O3")) {
+    data_year[[i]][data_year[[i]] < 0] <- 0
+  }
+  
+  ## Convert ozone units if needed:
+  ## Convert ppm --> ppb numerically
+  if (ozone_units == "ppb") {
+    data_year$O3 <- data_year$O3 * 1000
+  }
+  
+  ## Change the ozone units column
+  data_year <- data_year |> 
+    mutate(ozone_units = ozone_units)
+  
+  ## Return cleaned data as a tibble
+  return(data_year)
+}
+
+## Running the function
+test <- csv_clean("AQ_2018.csv", "ppb")
 ```
 
