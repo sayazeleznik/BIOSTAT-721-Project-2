@@ -1,0 +1,22 @@
+---
+title: "Project 2 Markdown"
+author: "Saya Zeleznik"
+date: "2026-11-17"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## Loading Packages
+library(dplyr)
+library(ggplot2)
+```
+```{r}
+## Loading data
+data_2018 <- read.csv("AQ_2018.csv")
+data_2019 <- read.csv("AQ_2019.csv")
+data_2020 <- read.csv("AQ_2020.csv")
+
+```
+
