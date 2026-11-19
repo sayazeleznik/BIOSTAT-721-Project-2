@@ -6,7 +6,7 @@ output: word_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE) ## Hiding code in output
 
 ## Loading Packages
 library(tidyverse) 
@@ -21,19 +21,21 @@ library(ggplot2)
 packageVersion("ggplot2") ## 4.0.3
 ```
   
-## Function  
+## Introduction  
   
-For this project. I used the version 2.0.0 of the tidyverse package, version 1.2.1 of the dplyr package, version 1.4.0 of the gt package, version 1.9.5 of the lubridate package, and version 4.0.3 of the ggplot2 package.   
+For this project. I used the version `r packageVersion("tidyverse")` of the tidyverse package, version `r packageVersion("dplyr")` of the dplyr package, version `r packageVersion("gt")` of the gt package, version `r packageVersion("lubridate")` of the lubridate package, and version `r packageVersion("ggplot2")` of the ggplot2 package.   
   
 Link to Github:   https://github.com/sayazeleznik/BIOSTAT-721-Project-2.git  
 ```{r}
 ## Loading data
 ## Raw measurements taken from the air pollution monitor at the RDU airport
-data_2018 <- read_csv("AQ_2018.csv")
-data_2019 <- read_csv("AQ_2019.csv")
-data_2020 <- read_csv("AQ_2020.csv")
+data_2018 <- read.csv("AQ_2018.csv")
+data_2019 <- read.csv("AQ_2019.csv")
+data_2020 <- read.csv("AQ_2020.csv")
 ```
 
+## Function  
+  
 I created a function to...  
 I decided that the order of operations should be...  
 Changing the order of the operations would... 
@@ -174,11 +176,11 @@ clean_2020 <- csv_clean("AQ_2020.csv", "ppm")
 clean_data <- bind_rows(clean_2018,
                         clean_2019,
                         clean_2020)
-glimpse(clean_data) 
+# glimpse(clean_data) 
 
 ## Examining clean data
-anyNA(clean_data) ## TRUE
-colSums(is.na(clean_data)) ## CO: 8 NA, PM25: 24 NA, O3: 12 NA
+# anyNA(clean_data) ## TRUE
+# colSums(is.na(clean_data)) ## CO: 8 NA, PM25: 24 NA, O3: 12 NA
 
 ## NOTE: clean_data contains NA values in the pollutant columns (CO, PM25, and O3)
 
@@ -284,7 +286,7 @@ table_2020
   
 Note: Because the 2020 data stop in April, January through April are based on three years of data, while May through December are based on two years. 
   
-In order to handle how CO and `O_{3}` are measured on very different scales, I converted `O_{3}` units from the default ppm to ppb; this way, CO and `O_{3}` are measured on similar scales. 
+In order to handle how CO and $O_{3}$ are measured on very different scales, I converted $O_{3}$ units from the default ppm to ppb; this way, CO and $O_{3}$ are measured on similar scales. 
 ```{r}
 ## Plot 1: CO and O3 by month 
 ## X-axis: month
@@ -407,12 +409,12 @@ ggplot(month_plot_data,
       ymin = lower_scaled,
       ymax = upper_scaled
     ),
-    width = 0.2
+    width = 0.3
   ) +
   scale_color_manual(
     values = c(
-      "CO" = "blue",
-      "O3" = "red"
+      "CO" = "#1E88E5",
+      "O3" = "#D81B60"
     )
   ) + 
   labs(
@@ -422,11 +424,64 @@ ggplot(month_plot_data,
     color = "Pollutant",
     caption = "O3 concentrations and their confidence intervals were multiplied by 10 to make both seasonal trends visible on the same y-axis."
   ) + 
-  theme_minimal()
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold"))
 ```
 
 ```{r}
 ## Plot 2
+## X-axis: month
+## Y-axis: PM_2.5 concentration
+## color: year
+
+## One PM25 concentration for each month of each year
+month_PM25 <- clean_data |> 
+  mutate(
+    month = month(date),
+    year = year(date)
+  ) |> 
+  group_by(year, month) |> 
+  summarise(
+    PM25_mean = mean(PM25, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+## Creating month labels
+month_PM25 <- month_PM25 |> 
+  mutate(
+    month = factor(
+      month,
+      levels = 1:12,
+      labels = month.abb
+    )
+  )
+
+## Plotting
+ggplot(month_PM25,
+       aes(
+         x = month,
+         y = PM25_mean,
+         color = factor(year),
+         group = year
+       )) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.5) +
+  scale_color_manual(
+    values = c(
+      "2018" = "#D81B60",
+      "2019" = "#1E88E5",
+      "2020" = "#FFC107"
+    )
+  ) +
+  labs(
+    title = "Monthly Average PM2.5 Concentrations by Year",
+    x = "Month",
+    y = expression("Mean PM"[2.5]*"Concentration ("*mu*"g/m"^3*")"),
+    color = "Year",
+    caption = "Monthly averages are calculated separately for each year. Plotted using color-blind friendly palette."
+  ) + 
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold"))
 ```
 
 
