@@ -15,13 +15,15 @@ library(dplyr)
 packageVersion("dplyr") ## 1.2.1
 library(gt)
 packageVersion("gt") ## 1.4.0
+library(lubridate)
+packageVersion("lubridate") ## 1.9.5
 library(ggplot2) 
 packageVersion("ggplot2") ## 4.0.3
 ```
   
 ## Function  
   
-For this project. I used the version 2.0.0 of the tidyverse package, version 1.2.1 of the dplyr package, version 1.4.0 of the gt package, and version 4.0.3 of the ggplot2 package.   
+For this project. I used the version 2.0.0 of the tidyverse package, version 1.2.1 of the dplyr package, version 1.4.0 of the gt package, version 1.9.5 of the lubridate package, and version 4.0.3 of the ggplot2 package.   
   
 Link to Github:   https://github.com/sayazeleznik/BIOSTAT-721-Project-2.git  
 ```{r}
@@ -172,7 +174,14 @@ clean_2020 <- csv_clean("AQ_2020.csv", "ppm")
 clean_data <- bind_rows(clean_2018,
                         clean_2019,
                         clean_2020)
-glimpse(clean_data)
+glimpse(clean_data) 
+
+## Examining clean data
+anyNA(clean_data) ## TRUE
+colSums(is.na(clean_data)) ## CO: 8 NA, PM25: 24 NA, O3: 12 NA
+
+## NOTE: clean_data contains NA values in the pollutant columns (CO, PM25, and O3)
+
 ```
   
 ## Tables
@@ -205,6 +214,7 @@ create_table <- function(clean_data, year) {
   data_year <- clean_data |> filter(lubridate::year(date) == year)
   
   ## Calculate min and max concentrations for each of the three pollutants
+  ## Because NA's are present in the pollutant columns, we set na.rm = TRUE
   summary_table <- data_year |> 
     summarise(
       CO_min = min(CO, na.rm = TRUE),
@@ -254,7 +264,9 @@ create_table <- function(clean_data, year) {
   
   return(summary_table)
 }
+```
 
+```{r}
 ## Table for 2018
 table_2018 <- create_table(clean_data, 2018)
 table_2018
@@ -268,9 +280,154 @@ table_2020 <- create_table(clean_data, 2020)
 table_2020
 ```
   
-## Plots 
+## Plots  
   
+Note: Because the 2020 data stop in April, January through April are based on three years of data, while May through December are based on two years. 
+  
+In order to handle how CO and `O_{3}` are measured on very different scales, I converted `O_{3}` units from the default ppm to ppb; this way, CO and `O_{3}` are measured on similar scales. 
 ```{r}
+## Plot 1: CO and O3 by month 
+## X-axis: month
+## Y-axis: CO and O3 concentrations, monthly averages (over the 3 years)
+## Points with a 95% confidence interval error bars, coded by color 
 
+## Pseudo code:
+## For i in 1:12
+## If Month == i, calculate n, s, and xbar
+## Calculate xbar +/- 1.96 * s/sqrt(n)
+## save xbar, upper bound, and lower bounds of confidence interval
+## Save in a data frame/tibble
+
+## Plot CO in blue, and O3 in red
+clean_data <- clean_data |> 
+  ## Add month column, coded 1:12, from the lubridate function
+  mutate(month = month(date))
+
+month_summary <- clean_data |> 
+  ## Group by months across all relevant years
+  group_by(month) |> 
+  summarise(
+    ## Because NA's are present in clean_data, we set na.rm = TRUE and sum all non-NA values to calculate n
+    ## CO statistics
+    CO_mean = mean(CO, na.rm = TRUE),
+    CO_sd = sd(CO, na.rm = TRUE),
+    CO_n = sum(!is.na(CO)),
+    
+    ## O3 statistics
+    O3_mean = mean(O3, na.rm = TRUE),
+    O3_sd = sd(O3, na.rm = TRUE),
+    O3_n = sum(!is.na(O3)),
+    
+    .groups = "drop"
+  )
+
+## Calculating 95% Confidence Intervals
+month_summary <- month_summary |> 
+  mutate(
+    ## CO onfidence intervals
+    CO_lower = CO_mean - 1.96 * (CO_sd / sqrt(CO_n)),
+    CO_upper = CO_mean + 1.96 * (CO_sd / sqrt(CO_n)),
+    
+    ## O3 confidence intervals
+    O3_lower = O3_mean - 1.96 * (O3_sd / sqrt(O3_n)),
+    O3_upper = O3_mean + 1.96 * (O3_sd / sqrt(O3_n))
+  )
+
+## Creating the data to plot
+month_plot_data <- month_summary |> 
+  pivot_longer(
+    ## Arrange columns by month
+    cols = -month,
+    names_to = c("pollutant", ".value"),
+    names_pattern = "(CO|O3)_(mean|sd|n|lower|upper)"
+  )
+
+## Making month a factor
+month_plot_data <- month_plot_data |> 
+  mutate(
+    month = factor(
+      month, 
+      levels = 1:12,
+      labels = month.abb
+    )
+  )
+
+## Preliminary investigation plot
+## From this, multiplying O3 by 10 would help scale the two data
+ggplot(
+  month_plot_data,
+  aes(x = month, 
+      y = mean,
+      color = pollutant)
+) + 
+  geom_point(size = 2) + 
+  geom_errorbar(
+    aes(ymin = lower,
+        ymax = upper),
+    width = 0.2
+  ) +
+  facet_wrap(~pollutant, scales = "free_y") + 
+  scale_color_manual(
+    values = c(
+      "CO" = "blue",
+      "O3" = "red"
+    )
+  ) +
+  labs(
+    title = "Monthly Average CO and O3 Concentrations (2018-2020)",
+    x = "Month",
+    y = "Mean Daily Concentration",
+    color = "Pollutant"
+  ) + 
+  theme_minimal()
 ```
+
+```{r}
+## Plot 1
+## Scaling the O3 data by 10 
+month_plot_data <- month_plot_data |> 
+  mutate(
+    mean_scaled = ifelse(
+      pollutant == "O3", mean * 10, mean),
+    lower_scaled = ifelse(
+      pollutant == "O3", lower * 10, lower),
+    upper_scaled = ifelse(
+      pollutant == "O3", upper * 10, upper))
+
+## Plotting
+ggplot(month_plot_data,
+       aes(
+         x = month, 
+         y = mean_scaled,
+         color = pollutant
+       )) + 
+  geom_point(size = 2) +
+  geom_errorbar(
+    aes(
+      ymin = lower_scaled,
+      ymax = upper_scaled
+    ),
+    width = 0.2
+  ) +
+  scale_color_manual(
+    values = c(
+      "CO" = "blue",
+      "O3" = "red"
+    )
+  ) + 
+  labs(
+    title = "Monthly Average CO and O3 Concentrations (2018-2020)",
+    x = "Month",
+    y = "Concentration (ppm; O3 multiplied by 10)",
+    color = "Pollutant",
+    caption = "O3 concentrations and their confidence intervals were multiplied by 10 to make both seasonal trends visible on the same y-axis."
+  ) + 
+  theme_minimal()
+```
+
+```{r}
+## Plot 2
+```
+
+
 
