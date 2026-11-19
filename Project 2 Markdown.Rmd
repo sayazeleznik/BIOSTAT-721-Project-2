@@ -9,20 +9,33 @@ output: word_document
 knitr::opts_chunk$set(echo = TRUE)
 
 ## Loading Packages
-library(tidyverse)
+library(tidyverse) 
+packageVersion("tidyverse") ## 2.0.0
 library(dplyr)
-library(ggplot2)
+packageVersion("dplyr") ## 1.2.1
+library(gt)
+packageVersion("gt") ## 1.4.0
+library(ggplot2) 
+packageVersion("ggplot2") ## 4.0.3
 ```
   
-For this project. I used the... 
+## Function  
   
+For this project. I used the version 2.0.0 of the tidyverse package, version 1.2.1 of the dplyr package, version 1.4.0 of the gt package, and version 4.0.3 of the ggplot2 package.   
+  
+Link to Github:   https://github.com/sayazeleznik/BIOSTAT-721-Project-2.git  
 ```{r}
 ## Loading data
 ## Raw measurements taken from the air pollution monitor at the RDU airport
 data_2018 <- read_csv("AQ_2018.csv")
 data_2019 <- read_csv("AQ_2019.csv")
 data_2020 <- read_csv("AQ_2020.csv")
+```
 
+I created a function to...  
+I decided that the order of operations should be...  
+Changing the order of the operations would... 
+```{r}
 # ## Function that processes a single year of data
 # str(data_2018) ## 479 obs. of 7 variables
 # length(unique(data_2019$Date)) ## 361 unique dates out of 479
@@ -108,6 +121,13 @@ csv_clean <- function(file_path, ozone_units = "ppm") {
       .groups = "drop"
     )
   
+  ## Add back the units columns for CO and PM2.5
+  data_year <- data_year |> 
+    mutate(
+      units_CO = "ppm",
+      units_PM = "ug/m3 LC"
+    )
+  
   ## Set negative pollutant concentrations to zero
   for (i in c("CO","PM25", "O3")) {
     data_year[[i]][data_year[[i]] < 0] <- 0
@@ -123,11 +143,134 @@ csv_clean <- function(file_path, ozone_units = "ppm") {
   data_year <- data_year |> 
     mutate(ozone_units = ozone_units)
   
+  ## Reorder columns
+  data_year <- data_year |> 
+    select(
+      date,
+      CO,
+      units_CO,
+      PM25,
+      units_PM, 
+      O3,
+      ozone_units
+    )
+  
   ## Return cleaned data as a tibble
   return(data_year)
 }
+```
 
-## Running the function
-test <- csv_clean("AQ_2018.csv", "ppb")
+```{r}
+## Running the function to clean each year of data, returns a tibble
+clean_2018 <- csv_clean("AQ_2018.csv", "ppm")
+clean_2019 <- csv_clean("AQ_2019.csv", "ppm")
+clean_2020 <- csv_clean("AQ_2020.csv", "ppm")
+```
+
+```{r}
+## Combining three years into one data frame by stacking by row
+clean_data <- bind_rows(clean_2018,
+                        clean_2019,
+                        clean_2020)
+glimpse(clean_data)
+```
+  
+## Tables
+  
+```{r}
+## Pseudo code: 
+## Title: {year} min and max
+## cols: Min | Max 
+## Rows: CO (ppm), PM25 (ug/m3 LC), O3 (ppm OR ppb)
+## Takes in clean_data
+## Filters by year using filter() 
+## uses summarise() function to create max and min, round decimal place to 3 values
+## Saves to a data frame/tibble
+## if ozone_units == "ppm" --> O3 (ppm) row name
+## if ozone_units == "ppb" --> O3 (ppb) row name
+## returns table using gt() function
+
+
+## Function
+## Args:
+##    clean_data, tibble, cleaned data, one row per date
+##    year, , year represented by data set
+## Returns:
+##    table, shows min and max daily concentrations of CO, PM2.5, and O3 with measurement units, rounded to 3 decimal places
+
+
+create_table <- function(clean_data, year) {
+  
+  ## Filter data set by year
+  data_year <- clean_data |> filter(lubridate::year(date) == year)
+  
+  ## Calculate min and max concentrations for each of the three pollutants
+  summary_table <- data_year |> 
+    summarise(
+      CO_min = min(CO, na.rm = TRUE),
+      CO_max = max(CO, na.rm = TRUE),
+      PM25_min = min(PM25, na.rm = TRUE),
+      PM25_max = max(PM25, na.rm = TRUE),
+      O3_min = min(O3, na.rm = TRUE),
+      O3_max = max(O3, na.rm = TRUE)
+    )
+  
+  ## Pollutants become the rows, min/max become the columns
+  summary_table <- summary_table |> 
+    pivot_longer(
+      cols = everything(),
+      names_to = c("Pollutant", ".value"),
+      names_pattern = "(.*)_(min|max)"
+    )
+  
+  ## Add pollutant names and measurement units
+  summary_table <- summary_table |> 
+    mutate(
+      Pollutant = recode(
+        Pollutant,
+        "CO" = "CO (ppm)",
+        "PM25" = "PM2.5 (ug/m3 LC)",
+        "O3" = paste0("O3 (", first(clean_data$ozone_units), ")")
+      ))
+  
+  ## Format summary table
+  summary_table <- summary_table |> 
+    gt() |> 
+    tab_header(
+      title = paste(
+        year,
+        "Minimum and Maximum Daily Air Pollutant Concentrations"
+      )
+    ) |> 
+    cols_label(
+      Pollutant = "Pollutant",
+      min = "Minimum",
+      max = "Maximum"
+    ) |> 
+    fmt_number(
+      columns = c(min, max),
+      decimals = 3
+    )
+  
+  return(summary_table)
+}
+
+## Table for 2018
+table_2018 <- create_table(clean_data, 2018)
+table_2018
+
+## Table for 2019
+table_2019 <- create_table(clean_data, 2019)
+table_2019
+
+## Table for 2020
+table_2020 <- create_table(clean_data, 2020)
+table_2020
+```
+  
+## Plots 
+  
+```{r}
+
 ```
 
