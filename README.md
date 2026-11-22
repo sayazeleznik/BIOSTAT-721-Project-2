@@ -9,7 +9,7 @@ The data came from the EPA monitor at the RDU airport for the years 2018, 2019, 
 ## File structure  
 The repository contains the following files:  
 - `AQ_2018.csv`, `AQ_2019.csv`, `AQ_2020.csv`: raw daily air quality measurements collected at the RDU airport monitor.  
-- `Project_2.Rmd`: RMarkdown document containing the data cleaning function, data processing to a cleaned data tibble, summary table function & summary tables, exploratory plots, and interpretation/justifications.  
+- `Project 2 Markdown.Rmd`: RMarkdown document containing the data cleaning function, data processing to a cleaned data tibble, summary table function & summary tables, exploratory plots, and interpretation/justifications.  
 - `Project_2.docx`: final knitted Word report (hiding code).  
 - `data_dictionary.md`: document describing the raw, processed, and derived variables used in the project.  
 - `README.md`: project overview, data sources, file structure, and instructions for reproducing the analysis.  
