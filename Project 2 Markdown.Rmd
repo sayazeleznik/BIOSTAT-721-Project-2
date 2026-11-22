@@ -52,7 +52,7 @@ I created a function to process a single year of data; this included improved fo
   
 I decided that the order of operations should be to read in the .csv file, rename the pollutant columns, format the date variable, remove duplicate rows, set negative concentrations to zero, calculate daily averages for non-identical rows for the same date, add back the measurement units for $CO$ and $PM_{2.5}$, convert $O_{3}$ units if requested (if not, default to "ppm"), then reorder the columns and return the tibble of the cleaned data set.  
   
-Changing the order of the operations would in some cases change the results. For example, if we didn't set negative pollutant measurements to 0 before averaging, the negative values could influence our calculated mean. Additionally, if we did not format the date variable correctly at the beginning of the function, we could incorrectly group measurements by day and could produce false averages. 
+Changing the order of the operations would in some cases change the results. For example, if we didn't set negative pollutant measurements to 0 before averaging, the negative values could influence our calculated mean. Similarly, if we did not remove identical rows, then identical pollutant dates would receive more weight in the final average. Additionally, if we did not format the date variable correctly at the beginning of the function, we could incorrectly group measurements by day and could produce false averages. 
 ```{r}
 ## Pseudo code:
 
@@ -108,7 +108,7 @@ csv_clean <- function(file_path, ozone_units = "ppm") {
     stop("Error: file_path is not a character string!")
   }
   
-  if(!tolower(tools::file_ext(file_path)) == "csv") {
+  if(tolower(tools::file_ext(file_path)) != "csv") {
     stop("Error: file_path is not a .csv!")
   }
   
@@ -296,16 +296,13 @@ create_table <- function(clean_data, year) {
   summary_table <- summary_table |> 
     gt() |> 
     ## Creating 2018 = Table 1, ..., 2020 = Table 3
-    tab_caption(
-      caption = paste0(
+    tab_header(
+      title = paste0(
         "Table ", year - 2017,
         ". Minimum and Maximum Daily Air Pollutant Concentrations for ",
         year
       )
     ) |> 
-    tab_header(
-      title = "Daily Air Pollutant Concentrations"
-      ) |> 
     cols_label(
       Pollutant = "Pollutant",
       min = "Minimum",
@@ -399,7 +396,7 @@ month_plot_data <- month_summary |>
     ## Arrange columns by month
     cols = -month,
     names_to = c("pollutant", ".value"),
-    names_pattern = "(CO|O₃)_(mean|sd|n|lower|upper)"
+    names_pattern = "(CO|O3)_(mean|sd|n|lower|upper)"
   )
 
 ## Making month a factor
@@ -412,7 +409,7 @@ month_plot_data <- month_plot_data |>
     )
   )
 
-## Preliminary investigation plot
+## Preliminary investigation plot (not part of assignment):
 ## From this, multiplying O3 by 10 would help scale the two data
 ggplot(
   month_plot_data,
@@ -462,7 +459,8 @@ ggplot(month_plot_data,
          y = mean_scaled,
          color = pollutant
        )) + 
-  geom_point(size = 2) +
+  geom_point(size = 2,
+             na.rm = TRUE) +
   geom_errorbar(
     aes(
       ymin = lower_scaled,
@@ -478,11 +476,11 @@ ggplot(month_plot_data,
     )
   ) + 
   labs(
-    title = "Monthly Average CO and O3 Concentrations (2018-2020)",
+    title = expression("Monthly Average CO and " * O[3] * " Concentrations (2018-2020)"),
     x = "Month",
-    y = "Concentration (ppm; O3 multiplied by 10)",
+    y = expression("Concentration (ppm; " * O[3] * " multiplied by 10)"),
     color = "Pollutant",
-    caption = "O3 (ppm) concentrations and their confidence intervals were multiplied by 10 to make both seasonal trends visible on the same y-axis. Plotted using color-blind friendly palette."
+    caption = expression("" * O[3] * " (ppm) concentrations and their confidence intervals were multiplied by 10 to make both seasonal trends visible on the same y-axis. Plotted using color-blind friendly palette.")
   ) + 
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
@@ -537,9 +535,9 @@ ggplot(month_PM25,
     )
   ) +
   labs(
-    title = "Monthly Average PM2.5 Concentrations by Year",
+    title = expression("Monthly Average " * PM[2.5] * " Concentrations by Year"),
     x = "Month",
-    y = expression("Mean PM"[2.5]*" Concentration ("*mu*"g/m"^3*")"),
+    y = expression("Mean " * PM[2.5] * " Concentration (" * mu * "g/m" ^ 3 * ")"),
     color = "Year",
     caption = "Monthly averages are calculated separately for each year. Plotted using color-blind friendly palette."
   ) + 
@@ -551,11 +549,10 @@ For this plot, I chose to use a combination of lines (geom_line) and points (geo
   
 ## Interpretation  
   
-From the tables, we see...  
-From the plots, we see... 
-The pollutants show season patterns... 
-The year ___ stands out... keeping in mind that the months May through December are based on only two years of data, while January through April are based on three.  
+The tables show that $PM_{2.5}$ has the greatest range of daily concentrations (spanning 0 - 31.2 $\mu g/m^{3}$), while $O_{3}$ has the smallest range across the three years (spanning 0.010 - 0.068 ppm); all three years show relatively similar minimum and maximum values for the three air pollutant concentrations.  
+  
+The plots suggest that $CO$ and $O_{3}$ exhibit seasonal patterns, with $CO$ decreasing in the warmer months (March through September) and $O_{3}$ increasing in the warmer months, while $PM_{2.5}$ concentrations seem to show a peak in both the warmer (June through September) and colder (November - March) months depending on the year; comparisons involving May - December 2020 are limited, however, because those months contain data only from 2018 and 2019. The year 2020 stands out for its extremely low levels of $PM_{2.5}$ in January and February, while the year 2018 stands out for its high levels of $PM_{2.5}$ in December.
   
 ## AI Use Statement  
   
-I used AI in this project to... 
+I used ChatGPT to review my R code, troubleshoot programming issues, and improve the organization and readability of my tables and plots. I evaluated the suggestions against the project instructions and my knowledge of R, and reviewed the proposed code with stackoverflow and other R resources to ensure they were consistent with my intended data processing goals. 
