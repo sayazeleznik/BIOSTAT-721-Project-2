@@ -298,8 +298,8 @@ create_table <- function(clean_data, year) {
     ## Creating 2018 = Table 1, ..., 2020 = Table 3
     tab_header(
       title = paste0(
-        "Table ", year - 2017,
-        ". Minimum and Maximum Daily Air Pollutant Concentrations for ",
+        # "Table ", year - 2017,
+        "Minimum and Maximum Daily Air Pollutant Concentrations for ",
         year
       )
     ) |> 
