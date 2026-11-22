@@ -8,7 +8,7 @@ output: word_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE) ## Hiding code in output
 
-## Loading Packages
+## Loading Packages & versions
 library(tidyverse) 
 packageVersion("tidyverse") ## 2.0.0
 library(dplyr)
@@ -19,13 +19,21 @@ library(lubridate)
 packageVersion("lubridate") ## 1.9.5
 library(ggplot2) 
 packageVersion("ggplot2") ## 4.0.3
+
+## R Studio Version
+R.version.string
+## Running R version 4.5.1 (2025-06-13 ucrt)
+
+## Additional Information 
+sessionInfo()
 ```
   
 ## Introduction  
   
-For this project. I used the version `r packageVersion("tidyverse")` of the tidyverse package, version `r packageVersion("dplyr")` of the dplyr package, version `r packageVersion("gt")` of the gt package, version `r packageVersion("lubridate")` of the lubridate package, and version `r packageVersion("ggplot2")` of the ggplot2 package.   
+For this project. I used the version `r packageVersion("tidyverse")` of the tidyverse package, version `r packageVersion("dplyr")` of the dplyr package, version `r packageVersion("gt")` of the gt package, version `r packageVersion("lubridate")` of the lubridate package, and version `r packageVersion("ggplot2")` of the ggplot2 package. I am also running `r R.version.string`.  
   
-Link to Github:   https://github.com/sayazeleznik/BIOSTAT-721-Project-2.git  
+Link to Github: https://github.com/sayazeleznik/BIOSTAT-721-Project-2.git. 
+  
 ```{r}
 ## Loading data
 ## Raw measurements taken from the air pollution monitor at the RDU airport
@@ -36,7 +44,8 @@ data_2020 <- read.csv("AQ_2020.csv")
 
 ## Function  
   
-I created a function to...  
+I created a function to process a single year of data; this included improved formatting of column names and variable types, removing duplicate data, averaging over multiple measures on the same day, returning one row per date per year, and exporting a tibble with the cleaned data.  
+  
 I decided that the order of operations should be...  
 Changing the order of the operations would... 
 ```{r}
@@ -71,26 +80,32 @@ Changing the order of the operations would...
 ## new_data$units_O3 <- "ppb"
 ## new_data$max_ozone_concentration * 1000
 
-## return(new dataframe or tibble)
+## return(cleaned tibble)
 
 
-## Goal: clean air quality measurements from a single year of data
+
+
+## Purpose: clean air quality measurements for a single year of data
 ## Arguments: 
+##    file_path, character, path to where .csv dataset is located on computer
 ##    ozone_units, character, specifies either "ppm" or "ppb", default is "ppm"
-##    file_path, character, where .csv dataset is located on computer
 ## Returns:
-##  data_year, tibble, cleaned data set
+##    data_year, tibble, cleaned data set for one year
 
 csv_clean <- function(file_path, ozone_units = "ppm") {
 
   ## Check requirements for function
   if(!is.character(file_path)) {
-    stop("file_path is not a character string!")
+    stop("Error: file_path is not a character string!")
   }
   
   
   if(!ozone_units %in% c("ppm", "ppb")) {
-    stop("ozone_units must be either 'ppm' or 'ppb'")
+    stop("Error: ozone_units must be either 'ppm' or 'ppb'")
+  }
+  
+  if(!is.character(ozone_units)) {
+    stop("Error: ozone_units is not a character string!")
   }
   
   ## Load data
@@ -111,7 +126,7 @@ csv_clean <- function(file_path, ozone_units = "ppm") {
       date = as.Date(date, format = "%m/%d/%Y")
     )
   
-  ## Remove identical rows
+  ## Remove duplicate rows
   data_year <- data_year |> 
     distinct()
   
@@ -145,7 +160,7 @@ csv_clean <- function(file_path, ozone_units = "ppm") {
   
   ## Change the ozone units column
   data_year <- data_year |> 
-    mutate(ozone_units = ozone_units)
+    mutate(units_O3 = ozone_units)
   
   ## Reorder columns
   data_year <- data_year |> 
@@ -156,7 +171,7 @@ csv_clean <- function(file_path, ozone_units = "ppm") {
       PM25,
       units_PM, 
       O3,
-      ozone_units
+      units_O3
     )
   
   ## Return cleaned data as a tibble
@@ -164,14 +179,14 @@ csv_clean <- function(file_path, ozone_units = "ppm") {
 }
 ```
 
-```{r}
+```{r include=FALSE}
 ## Running the function to clean each year of data, returns a tibble
 clean_2018 <- csv_clean("AQ_2018.csv", "ppm")
 clean_2019 <- csv_clean("AQ_2019.csv", "ppm")
 clean_2020 <- csv_clean("AQ_2020.csv", "ppm")
 ```
 
-```{r}
+```{r include=FALSE}
 ## Combining three years into one data frame by stacking by row
 clean_data <- bind_rows(clean_2018,
                         clean_2019,
@@ -182,11 +197,14 @@ clean_data <- bind_rows(clean_2018,
 # anyNA(clean_data) ## TRUE
 # colSums(is.na(clean_data)) ## CO: 8 NA, PM25: 24 NA, O3: 12 NA
 
-## NOTE: clean_data contains NA values in the pollutant columns (CO, PM25, and O3)
+## NOTE: clean_data contains NA values in the pollutant columns (CO, PM25, 
+## and O3)
 
 ```
   
-## Tables
+## Tables  
+  
+I created a function to make a table for each year of data (2018, 2019, and 2020) that shows the minimum and maximum daily concentrations of each pollutant. This function takes the fully cleaned data set (cleaned data for all years combined into one tibble) and the year (2018, 2019, or 2020) as arguments, separates the data by the desired year, and then generates a table that contains the name and units of each pollutant, displays the numeric values to 3 decimal places, and includes a title/caption. 
   
 ```{r}
 ## Pseudo code: 
@@ -202,15 +220,32 @@ clean_data <- bind_rows(clean_2018,
 ## returns table using gt() function
 
 
-## Function
-## Args:
-##    clean_data, tibble, cleaned data, one row per date
-##    year, , year represented by data set
+## Table Function:
+## Purpose: create a table of the minimum and maximum daily concentrations of
+## each pollutant using processed data for all years
+## Arguments:
+##    clean_data, tibble, cleaned data for all years with one row per date
+##    year, numeric, year represented by data set
 ## Returns:
-##    table, shows min and max daily concentrations of CO, PM2.5, and O3 with measurement units, rounded to 3 decimal places
+##    summary_table, gt_tbl/list, shows min and max daily concentrations of CO, 
+##    PM2.5, and O3 with measurement units, rounded to 3 decimal places
 
 
 create_table <- function(clean_data, year) {
+  
+  ## Checking argument requirements
+  if(!year %in% c(2018, 2019, 2020)) {
+    stop("Error: year must be 2018, 2019, or 2020!")
+  }
+  
+  if(!is.numeric(year)) {
+    stop("Error: year is not numeric!")
+  }
+  
+  if(!is_tibble(clean_data) | !is.data.frame(clean_data)) {
+    stop("Error: clean_data is not a tibble or data frame!")
+  }
+  
   
   ## Filter data set by year
   data_year <- clean_data |> filter(lubridate::year(date) == year)
@@ -242,7 +277,7 @@ create_table <- function(clean_data, year) {
         Pollutant,
         "CO" = "CO (ppm)",
         "PM25" = "PM2.5 (ug/m3 LC)",
-        "O3" = paste0("O3 (", first(clean_data$ozone_units), ")")
+        "O3" = paste0("O3 (", first(clean_data$units_O3), ")")
       ))
   
   ## Format summary table
@@ -267,16 +302,23 @@ create_table <- function(clean_data, year) {
   return(summary_table)
 }
 ```
-
+  
+Here is the table containing the minimum and maximum daily concentrations of each pollutant for the year 2018: 
 ```{r}
 ## Table for 2018
 table_2018 <- create_table(clean_data, 2018)
 table_2018
-
+```
+  
+Here is the table containing the minimum and maximum daily concentrations of each pollutant for the year 2019: 
+```{r}
 ## Table for 2019
 table_2019 <- create_table(clean_data, 2019)
 table_2019
-
+```
+  
+Here is the table containing the minimum and maximum daily concentrations of each pollutant for the year 2020: 
+```{r}
 ## Table for 2020
 table_2020 <- create_table(clean_data, 2020)
 table_2020
@@ -383,7 +425,8 @@ ggplot(
   ) + 
   theme_minimal()
 ```
-
+  
+### $CO$ and $O_{3}$ by month
 ```{r}
 ## Plot 1
 ## Scaling the O3 data by 10 
@@ -409,7 +452,8 @@ ggplot(month_plot_data,
       ymin = lower_scaled,
       ymax = upper_scaled
     ),
-    width = 0.3
+    linewidth = 0.4,
+    width = 0.25
   ) +
   scale_color_manual(
     values = c(
@@ -422,12 +466,15 @@ ggplot(month_plot_data,
     x = "Month",
     y = "Concentration (ppm; O3 multiplied by 10)",
     color = "Pollutant",
-    caption = "O3 concentrations and their confidence intervals were multiplied by 10 to make both seasonal trends visible on the same y-axis."
+    caption = "O3 concentrations and their confidence intervals were multiplied by 10 to make both seasonal trends visible on the same y-axis. Plotted using color-blind friendly palette."
   ) + 
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 ```
-
+  
+For this plot, I chose to multiply the monthly mean $O_{3}$ concentration by 10; multiplying by less than 10 resulted in the error bars of the monthly mean $O_{3}$ concentration being too small to read, and multiply by more than 10 resulted in the monthly mean $O_{3}$ concentration appearing greater overall than the monthly mean $CO$ concentration. Although the error bars overlap for the months of February and October, the monthly mean concentrations for both pollutants remain readable on the same graph and preserve their original patterns.  
+  
+### $PM_{2.5}$ by month and year
 ```{r}
 ## Plot 2
 ## X-axis: month
@@ -464,8 +511,8 @@ ggplot(month_PM25,
          color = factor(year),
          group = year
        )) +
-  geom_line(linewidth = 1) +
-  geom_point(size = 2.5) +
+  geom_line(linewidth = 0.6) +
+  geom_point(size = 2) +
   scale_color_manual(
     values = c(
       "2018" = "#D81B60",
@@ -476,13 +523,23 @@ ggplot(month_PM25,
   labs(
     title = "Monthly Average PM2.5 Concentrations by Year",
     x = "Month",
-    y = expression("Mean PM"[2.5]*"Concentration ("*mu*"g/m"^3*")"),
+    y = expression("Mean PM"[2.5]*" Concentration ("*mu*"g/m"^3*")"),
     color = "Year",
     caption = "Monthly averages are calculated separately for each year. Plotted using color-blind friendly palette."
   ) + 
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 ```
-
-
-
+  
+For this plot, I chose to use 
+  
+## Interpretation  
+  
+From the tables, we see...  
+From the plots, we see... 
+The pollutants show season patterns... 
+The year ___ stands out... keeping in mind that the months May through December are based on only two years of data, while January through April are based on three.  
+  
+## AI Use Statement  
+  
+I used AI in this project to... 
