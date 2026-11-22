@@ -9,7 +9,7 @@ The data came from the EPA monitor at the RDU airport for the years 2018, 2019, 
 ## Raw Data  
 The original data sets are provided in the `BIOSTAT-721-Project-2` repository as three .csv files: `AQ_2018.csv`, `AQ_2019.csv`, and `AQ_2020.csv`.  
 
-| Variable | Description | Units / Format |
+| **Variable** | **Description** | **Units / Format** |
 |---|---|---|
 | Date | Date of air quality measurement | MM/DD/YYYY |
 | Daily Max 8-hour CO Concentration | Maximum 8-hour average CO concentration | numeric |
@@ -22,7 +22,7 @@ The original data sets are provided in the `BIOSTAT-721-Project-2` repository as
 ## Processed Data  
 The `csv_clean()` function processes each year's raw data, returning one observation (row) per date.  
 
-| Variable | Description | Units / Format |
+| **Variable** | **Description** | **Units / Format** |
 |---|---|---|
 | date | Date of air quality measurement | R Date (YYYY-MM-DD) |
 | CO | Daily maximum 8-hour average CO concentration | numeric |
@@ -35,7 +35,7 @@ The `csv_clean()` function processes each year's raw data, returning one observa
 ## Derived Variables  
 Variables calculated for exploratory data visualizations. 
 
-| Variable | Description | Units / Format |
+| **Variable** | **Description** | **Units / Format** |
 |---|---|---|
 | month | Calendar month extracted from date | Integer (1-12) |
 | year | Calendar year extracted from date | Integer (2018-2020) |
