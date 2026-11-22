@@ -50,14 +50,15 @@ data_2020 <- read.csv("AQ_2020.csv")
   
 I created a function to process a single year of data; this included improved formatting of column names and variable types, removing duplicate data, averaging over multiple measures on the same day, returning one row per date per year, and exporting a tibble with the cleaned data. Because I shortened the column names for the cleaned data, I decided to add a data dictionary to the project so as to not lose any information about the data. 
   
-I decided that the order of operations should be...  
-Changing the order of the operations would... 
+I decided that the order of operations should be to read in the .csv file, rename the pollutant columns, format the date variable, remove duplicate rows, set negative concentrations to zero, calculate daily averages for non-identical rows for the same date, add back the measurement units for $CO$ and $PM_{2.5}$, convert $O_{3}$ units if requested (if not, default to "ppm"), then reorder the columns and return the tibble of the cleaned data set.  
+  
+Changing the order of the operations would in some cases change the results. For example, if we didn't set negative pollutant measurements to 0 before averaging, the negative values could influence our calculated mean. Additionally, if we did not format the date variable correctly at the beginning of the function, we could incorrectly group measurements by day and could produce false averages. 
 ```{r}
-# ## Function that processes a single year of data
+## Pseudo code:
+
+## Function that processes a single year of data
 # str(data_2018) ## 479 obs. of 7 variables
 # length(unique(data_2019$Date)) ## 361 unique dates out of 479
-
-## Pseudo code:
 
 ## csv_clean <- function ("file_path.csv", ozone_units) {
 ## Load in the data: data_year <- read.csv("file_path.csv")
@@ -77,23 +78,25 @@ Changing the order of the operations would...
 ## if new_data$PM2.5_concentration[i] < 0 <- 0,
 ## if new_data$ozone_concentration[i] < 0 <- 0
 
-## if date is not unique, take average of the duplicate rows, save average as the new date entry. 
+## take average rows with same dates, save average as the new date entry 
+## --> one row per date
 ## save to new_data
 
 ## Argument that lets user choose the units
 ## new_data$units_O3 <- ozone units
 ## if ozone_units == "ppb" {
 ## new_data$units_O3 <- "ppb"
-## new_data$max_ozone_concentration * 1000
+## new_data$max_ozone_concentration * 1000 }
 
 ## return(cleaned tibble)
+## }
 
 
 
-
+## Function:
 ## Purpose: clean air quality measurements for a single year of data
 ## Arguments: 
-##    file_path, character, path to where .csv dataset is located on computer
+##    file_path, character, .csv, path to where .csv dataset is located on computer
 ##    ozone_units, character, specifies either "ppm" or "ppb", default is "ppm"
 ## Returns:
 ##    data_year, tibble, cleaned data set for one year
@@ -105,6 +108,9 @@ csv_clean <- function(file_path, ozone_units = "ppm") {
     stop("Error: file_path is not a character string!")
   }
   
+  if(!tolower(tools::file_ext(file_path)) == "csv") {
+    stop("Error: file_path is not a .csv!")
+  }
   
   if(!ozone_units %in% c("ppm", "ppb")) {
     stop("Error: ozone_units must be either 'ppm' or 'ppb'")
@@ -240,15 +246,15 @@ I created a function to make a table for each year of data (2018, 2019, and 2020
 create_table <- function(clean_data, year) {
   
   ## Checking argument requirements
-  if(!year %in% c(2018, 2019, 2020)) {
-    stop("Error: year must be 2018, 2019, or 2020!")
-  }
-  
   if(!is.numeric(year)) {
     stop("Error: year is not numeric!")
   }
   
-  if(!is_tibble(clean_data) | !is.data.frame(clean_data)) {
+  if(!year %in% c(2018, 2019, 2020)) {
+    stop("Error: year must be 2018, 2019, or 2020!")
+  }
+  
+  if(!is.data.frame(clean_data)) {
     stop("Error: clean_data is not a tibble or data frame!")
   }
   
@@ -282,19 +288,24 @@ create_table <- function(clean_data, year) {
       Pollutant = recode(
         Pollutant,
         "CO" = "CO (ppm)",
-        "PM25" = "PM2.5 (ug/m3 LC)",
-        "O3" = paste0("O3 (", first(clean_data$units_O3), ")")
+        "PM25" = "PM₂.₅ (µg/m³ LC)",
+        "O3" = paste0("O₃ (", first(clean_data$units_O3), ")")
       ))
   
   ## Format summary table
   summary_table <- summary_table |> 
     gt() |> 
-    tab_header(
-      title = paste(
-        year,
-        "Minimum and Maximum Daily Air Pollutant Concentrations"
+    ## Creating 2018 = Table 1, ..., 2020 = Table 3
+    tab_caption(
+      caption = paste0(
+        "Table ", year - 2017,
+        ". Minimum and Maximum Daily Air Pollutant Concentrations for ",
+        year
       )
     ) |> 
+    tab_header(
+      title = "Daily Air Pollutant Concentrations"
+      ) |> 
     cols_label(
       Pollutant = "Pollutant",
       min = "Minimum",
@@ -388,7 +399,7 @@ month_plot_data <- month_summary |>
     ## Arrange columns by month
     cols = -month,
     names_to = c("pollutant", ".value"),
-    names_pattern = "(CO|O3)_(mean|sd|n|lower|upper)"
+    names_pattern = "(CO|O₃)_(mean|sd|n|lower|upper)"
   )
 
 ## Making month a factor
@@ -423,7 +434,7 @@ ggplot(
     )
   ) +
   labs(
-    title = "Monthly Average CO and O3 Concentrations (2018-2020)",
+    title = "Monthly Average CO and O₃ Concentrations (2018-2020)",
     x = "Month",
     y = "Mean Daily Concentration",
     color = "Pollutant"
@@ -477,7 +488,7 @@ ggplot(month_plot_data,
   theme(plot.title = element_text(face = "bold"))
 ```
   
-For this plot, I chose to multiply the monthly mean $O_{3}$ concentration by 10; multiplying by less than 10 resulted in the error bars of the monthly mean $O_{3}$ concentration being too small to read, and multiply by more than 10 resulted in the monthly mean $O_{3}$ concentration appearing greater overall than the monthly mean $CO$ concentration. Although the error bars overlap for the months of February and October, the monthly mean concentrations for both pollutants remain readable on the same graph and preserve their original patterns.  
+For this plot, I chose to multiply the monthly mean $O_{3}$ concentration and its confidence intervals by 10; multiplying by less than 10 resulted in the error bars of the monthly mean $O_{3}$ concentration being too small to read, and multiply by more than 10 resulted in the monthly mean $O_{3}$ concentration appearing greater overall than the monthly mean $CO$ concentration. Although the error bars overlap for the months of February and October, the monthly mean concentrations for both pollutants remain readable on the same graph and preserve their original patterns, although the plotted $O_{3}$ values no longer represent its original concentration scale.  
   
 ### $PM_{2.5}$ by Month and Year
 ```{r}
@@ -536,7 +547,7 @@ ggplot(month_PM25,
   theme(plot.title = element_text(face = "bold"))
 ```
   
-For this plot, I chose to use 
+For this plot, I chose to use a combination of lines (geom_line) and points (geom_point) because the lines highlight the seasonal trends in monthly $PM_{2.5}$ concentrations, while the points distinguish individual monthly averages and allow for numerical comparisons across years. 
   
 ## Interpretation  
   
